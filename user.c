@@ -1,4 +1,5 @@
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,18 +10,37 @@
 
 int main()
 {
-    size_t nelem = 1000;
-    size_t size = nelem * sizeof(int);
-    int *buf = malloc(size);
+    int ret = -1;
+    int fd = -1;
+    int *inbuf = NULL;
 
-    int fd = open(KSORT_DEV, O_RDWR);
+    fd = open(KSORT_DEV, O_RDWR);
     if (fd < 0) {
         perror("Failed to open character device");
-        exit(1);
+        goto error;
     }
 
-    ssize_t sz = write(fd, buf, 0);
+    size_t nelem = 1000;
+    size_t size = nelem * sizeof(int);
+    inbuf = malloc(size);
+    if (!inbuf) {
+        goto error;
+    }
+    for (size_t i = 0; i < nelem; i++)
+        inbuf[i] = rand() % nelem;
 
-    close(fd);
-    return 0;
+    ssize_t w_sz = write(fd, inbuf, size);
+    if (w_sz != size) {
+        perror("Failed to write character device");
+        ret = w_sz;
+        goto error;
+    }
+
+    ret = 0;
+
+error:
+    free(inbuf);
+    if (fd > 0)
+        close(fd);
+    return ret;
 }

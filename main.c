@@ -11,7 +11,6 @@ MODULE_LICENSE("GPL");
 static dev_t dev = -1;
 static struct cdev cdev;
 static struct class *class;
-static void *sort_buffer;
 
 struct workqueue_struct *workqueue;
 
@@ -25,30 +24,37 @@ static int ksort_release(struct inode *inode, struct file *file)
     return 0;
 }
 
+static ssize_t ksort_read(struct file *file,
+                          char *buf,
+                          size_t size,
+                          loff_t *offset)
+{
+    return 0;
+}
+
 static ssize_t ksort_write(struct file *file,
                            const char *buf,
                            size_t size,
                            loff_t *offset)
 {
-    unsigned long len = 0;
+    unsigned long len;
 
-    sort_buffer = kmalloc(size, GFP_KERNEL);
+    void *sort_buffer = kmalloc(size, GFP_KERNEL);
     if (!sort_buffer)
         return 0;
 
     len = copy_from_user(sort_buffer, buf, size);
-    if (len != size)
-        goto error_free_sort_buffer;
+    if (len != 0)
+        return 0;
 
     sort_main(sort_buffer, size);
 
-error_free_sort_buffer:
     kfree(sort_buffer);
-    sort_buffer = NULL;
-    return len;
+    return size;
 }
 
 static const struct file_operations fops = {
+    .read = ksort_read,
     .write = ksort_write,
     .open = ksort_open,
     .release = ksort_release,
