@@ -2,6 +2,7 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include "sort.h"
 
 MODULE_LICENSE("GPL");
 
@@ -9,9 +10,48 @@ MODULE_LICENSE("GPL");
 
 static dev_t dev = -1;
 static struct cdev cdev;
-static struct class *class = NULL;
+static struct class *class;
+static void *sort_buffer;
+
+struct workqueue_struct *workqueue;
+
+static int ksort_open(struct inode *inode, struct file *file)
+{
+    return 0;
+}
+
+static int ksort_release(struct inode *inode, struct file *file)
+{
+    return 0;
+}
+
+static ssize_t ksort_write(struct file *file,
+                           const char *buf,
+                           size_t size,
+                           loff_t *offset)
+{
+    unsigned long len = 0;
+
+    sort_buffer = kmalloc(size, GFP_KERNEL);
+    if (!sort_buffer)
+        return 0;
+
+    len = copy_from_user(sort_buffer, buf, size);
+    if (len != size)
+        goto error_free_sort_buffer;
+
+    sort_main(sort_buffer, size);
+
+error_free_sort_buffer:
+    kfree(sort_buffer);
+    sort_buffer = NULL;
+    return len;
+}
 
 static const struct file_operations fops = {
+    .write = ksort_write,
+    .open = ksort_open,
+    .release = ksort_release,
     .owner = THIS_MODULE,
 };
 
@@ -38,8 +78,14 @@ static int __init ksort_init(void)
     if (cdev_add(&cdev, dev, 1) < 0)
         goto error_device_destroy;
 
+    workqueue = alloc_workqueue("ksortq", 0, WQ_MAX_ACTIVE);
+    if (!workqueue)
+        goto error_cdev_del;
+
     return 0;
 
+error_cdev_del:
+    cdev_del(&cdev);
 error_device_destroy:
     device_destroy(class, dev);
 error_class_destroy:
@@ -52,6 +98,10 @@ error_unregister_chrdev_region:
 
 static void __exit ksort_exit(void)
 {
+    /* Since this will do drain_workqueue, we don't need to flush it explicitly
+     */
+    destroy_workqueue(workqueue);
+
     cdev_del(&cdev);
     device_destroy(class, dev);
     class_destroy(class);
