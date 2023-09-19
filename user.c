@@ -29,14 +29,26 @@ int main()
     for (size_t i = 0; i < nelem; i++)
         inbuf[i] = rand() % nelem;
 
-    ssize_t w_sz = write(fd, inbuf, size);
-    if (w_sz != size) {
+    ssize_t r_sz = read(fd, inbuf, size);
+    if (r_sz != size) {
         perror("Failed to write character device");
-        ret = w_sz;
         goto error;
     }
 
+    bool pass = true;
     ret = 0;
+    /* Verify the result of sorting */
+    for (size_t i = 1; i < nelem; i++) {
+        if (inbuf[i] < inbuf[i - 1]) {
+            pass = false;
+            break;
+        }
+    }
+
+    if (pass)
+        printf("Sorting success!\n");
+    else
+        printf("Sorting fail!\n");
 
 error:
     free(inbuf);

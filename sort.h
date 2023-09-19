@@ -5,5 +5,5 @@
 
 extern struct workqueue_struct *workqueue;
 
-void sort_main(void *sort_buffer, size_t size);
+void sort_main(void *sort_buffer, size_t size, size_t es);
 #endif

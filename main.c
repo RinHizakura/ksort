@@ -29,7 +29,29 @@ static ssize_t ksort_read(struct file *file,
                           size_t size,
                           loff_t *offset)
 {
-    return 0;
+    unsigned long len;
+
+    void *sort_buffer = kmalloc(size, GFP_KERNEL);
+    if (!sort_buffer)
+        return 0;
+
+    /* TODO: It is not a great idea to require user to put data on
+     * the buffer for read operation, although we just use the
+     * interface for testing. */
+    len = copy_from_user(sort_buffer, buf, size);
+    if (len != 0)
+        return 0;
+
+    /* TODO: Assume the sorting object always becomes an integer array,
+     * we may want to allow other types in the future. */
+    sort_main(sort_buffer, size, sizeof(int));
+
+    len = copy_to_user(buf, sort_buffer, size);
+    if (len != 0)
+        return 0;
+
+    kfree(sort_buffer);
+    return size;
 }
 
 static ssize_t ksort_write(struct file *file,
@@ -37,20 +59,7 @@ static ssize_t ksort_write(struct file *file,
                            size_t size,
                            loff_t *offset)
 {
-    unsigned long len;
-
-    void *sort_buffer = kmalloc(size, GFP_KERNEL);
-    if (!sort_buffer)
-        return 0;
-
-    len = copy_from_user(sort_buffer, buf, size);
-    if (len != 0)
-        return 0;
-
-    sort_main(sort_buffer, size);
-
-    kfree(sort_buffer);
-    return size;
+    return 0;
 }
 
 static const struct file_operations fops = {
