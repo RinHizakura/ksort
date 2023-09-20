@@ -24,6 +24,11 @@ static int ksort_release(struct inode *inode, struct file *file)
     return 0;
 }
 
+static int num_compare(const void *a, const void *b)
+{
+    return (*(int *) a - *(int *) b);
+}
+
 static ssize_t ksort_read(struct file *file,
                           char *buf,
                           size_t size,
@@ -44,7 +49,8 @@ static ssize_t ksort_read(struct file *file,
 
     /* TODO: Assume the sorting object always becomes an integer array,
      * we may want to allow other types in the future. */
-    sort_main(sort_buffer, size, sizeof(int));
+    size_t es = sizeof(int);
+    sort_main(sort_buffer, size / es, es, num_compare);
 
     len = copy_to_user(buf, sort_buffer, size);
     if (len != 0)
